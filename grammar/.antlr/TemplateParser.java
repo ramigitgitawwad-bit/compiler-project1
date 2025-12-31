@@ -1,4 +1,4 @@
-// Generated from d:/Compiler/Compiler_Project/grammar/TemplateParser.g4 by ANTLR 4.13.1
+// Generated from d:/Compiler/Compiler_Project/grammar/Parser.g4 by ANTLR 4.13.1
 import org.antlr.v4.runtime.atn.*;
 import org.antlr.v4.runtime.dfa.DFA;
 import org.antlr.v4.runtime.*;
@@ -109,7 +109,7 @@ public class TemplateParser extends Parser {
 	}
 
 	@Override
-	public String getGrammarFileName() { return "TemplateParser.g4"; }
+	public String getGrammarFileName() { return "Parser.g4"; }
 
 	@Override
 	public String[] getRuleNames() { return ruleNames; }

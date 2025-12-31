@@ -1,4 +1,4 @@
-// Generated from d:/Compiler/Compiler_Project/grammar/TemplateLexer.g4 by ANTLR 4.13.1
+// Generated from d:/Compiler/Compiler_Project/grammar/Lexer.g4 by ANTLR 4.13.1
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.Token;
@@ -135,7 +135,7 @@ public class TemplateLexer extends Lexer {
 	}
 
 	@Override
-	public String getGrammarFileName() { return "TemplateLexer.g4"; }
+	public String getGrammarFileName() { return "Lexer.g4"; }
 
 	@Override
 	public String[] getRuleNames() { return ruleNames; }
