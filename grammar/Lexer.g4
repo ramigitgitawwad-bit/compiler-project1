@@ -1,118 +1,101 @@
-parser grammar Parser;
-options { tokenVocab= Lexer; }
+lexer grammar Lexer;
+channels { ERROR }
 
-/* ===================== ROOT ===================== */
-template
-    : doctype? node* EOF
+/* ===================== DEFAULT (HTML) ===================== */
+HTML_DOCTYPE: '<!DOCTYPE' .*? '>';
+HTML_COMMENT: '<!--' .*? '-->' -> skip;
+
+/* ---- Mode switches ---- */
+STYLE_OPEN: '<style>' -> pushMode(CSS);
+SCRIPT_OPEN: '<script>' -> pushMode(SCRIPT);
+JINJA_EXPR_START: '{{' -> pushMode(JINJA);
+JINJA_STMT_START: '{%' -> pushMode(JINJA);
+JINJA_COMMENT: '{#' .*? '#}' -> skip;
+
+/* ---- HTML ---- */
+HTML_TAG_START : '<' TAG_NAME -> pushMode(TAG);
+HTML_TAG_CLOSE : '</' TAG_NAME HTML_WS? '>';
+HTML_TEXT      : ~[<{\n]+ ;
+HTML_WS        : [ \t\r\n]+ -> skip;
+TAG_NAME: [a-zA-Z][a-zA-Z0-9-]*;
+
+/* ===================== TAG MODE ===================== */
+mode TAG;
+TAG_WS: [ \t\r\n]+ -> skip;
+HTML_ATTR_NAME: [a-zA-Z_:][a-zA-Z0-9_:-]*;
+EQUALS: '=';
+HTML_ATTR_VALUE
+    : '"' ~["\r\n]* '"'
+    | '\'' ~['\r\n]* '\''
     ;
+TAG_END : '>'  -> popMode;
+SELF_CLOSE : '/>' -> popMode;
 
-node
-    : htmlNode
-    | jinjaNode
-    | styleNode
-//    | scriptNode
+/* ===================== CSS MODE ===================== */
+mode CSS;
+CSS_STYLE_CLOSE: '</style>' -> popMode;
+CSS_COMMENT: '/*' .*? '*/' -> skip;
+CSS_LBRACE: '{';
+CSS_RBRACE: '}';
+CSS_COLON: ':';
+CSS_SEMI: ';';
+CSS_NUMBER: [0-9]+ ('.' [0-9]+)?;
+CSS_UNIT: 'px' | 'em' | 'rem' | '%' | 'vh' | 'vw';
+CSS_COLOR_HEX
+    : '#' HEX HEX HEX (HEX HEX HEX)?
     ;
-/* ===================== HTML ===================== */
-doctype: HTML_DOCTYPE;
-htmlNode
-    : normalHtmlElement
-    | selfClosingHtmlElement
-    | HTML_TEXT
+fragment HEX
+    : [0-9a-fA-F]
     ;
+CSS_COLOR_KEYWORD
+     : 'red' | 'green' | 'blue' | 'black' | 'white' | 'yellow'
+     ;
+CSS_STRING: '"' (~["\r\n])* '"' | '\'' (~['\r\n])* '\'';
 
-normalHtmlElement
-    : openTag node* closeTag
+/* ---- CSS Selectors ---- */
+CSS_ID_SELECTOR
+    : '#' [a-zA-Z_][a-zA-Z0-9_-]*
     ;
-
-selfClosingHtmlElement
-    : HTML_TAG_START attribute* SELF_CLOSE
+CSS_CLASS_SELECTOR
+    : '.' [a-zA-Z_][a-zA-Z0-9_-]*
     ;
+CSS_IDENT: [a-zA-Z_-][a-zA-Z0-9_-]*;
+CSS_WS: [ \t\r\n]+ -> skip;
 
-openTag
-    : HTML_TAG_START attribute* TAG_END
-    ;
+/* ===================== SCRIPT MODE ===================== */
+mode SCRIPT;
 
-closeTag
-    : HTML_TAG_CLOSE
-    ;
+SCRIPT_CLOSE: '</script>' -> popMode;
+SCRIPT_TEXT: .+?;
 
-attribute
-    : HTML_ATTR_NAME (EQUALS HTML_ATTR_VALUE)?
-    ;
+/* ===================== JINJA MODE ===================== */
+mode JINJA;
+/* ---- End ---- */
+JINJA_EXPR_END: '}}' -> popMode;
+JINJA_STMT_END: '%}' -> popMode;
 
-/* ===================== STYLE ===================== */
-styleNode
-    : STYLE_OPEN cssBlock* CSS_STYLE_CLOSE
-    ;
+/* ---- Keywords ---- */
+JINJA_IF: 'if';
+JINJA_ELSE: 'else';
+JINJA_ELIF: 'elif';
+JINJA_FOR: 'for';
+JINJA_IN: 'in';
+JINJA_ENDIF: 'endif';
+JINJA_ENDFOR: 'endfor';
 
-cssBlock
-    : cssSelector CSS_LBRACE cssDeclaration* CSS_RBRACE
-    ;
+/* ---- Expressions ---- */
+JINJA_ID: [a-zA-Z_][a-zA-Z0-9_]*;
+JINJA_INT: [0-9]+;
+JINJA_FLOAT: [0-9]+ '.' [0-9]+;
+JINJA_STRING: '"' (~["\r\n])* '"' | '\'' (~['\r\n])* '\'';
 
-cssSelector
-    : CSS_ID_SELECTOR      # idSelector
-    | CSS_CLASS_SELECTOR   # classSelector
-    | CSS_IDENT            # tagSelector    ;
+JINJA_DOT: '.';
+JINJA_COMMA: ',';
+JINJA_LPAREN: '(';
+JINJA_RPAREN: ')';
 
-cssDeclaration
-    : CSS_IDENT CSS_COLON cssValue CSS_SEMI
-    ;
+JINJA_ARITH_OP: '+' | '-' | '*' | '/' | '%';
+JINJA_COMP_OP: '==' | '!=' | '<' | '>' | '<=' | '>=';
+JINJA_BOOL_OP: 'and' | 'or' | 'not';
 
-cssValue
-    : CSS_COLOR_HEX
-    | CSS_COLOR_KEYWORD
-    | CSS_NUMBER CSS_UNIT?
-    | CSS_STRING
-    | CSS_IDENT
-    ;
-
-/* ===================== SCRIPT ===================== */
-//scriptNode
-//    : SCRIPT_OPEN SCRIPT_TEXT* SCRIPT_CLOSE
-//    ;
-
-/* ===================== JINJA ===================== */
-jinjaNode
-    : jinjaExpression
-    | jinjaStatement
-    ;
-
-jinjaExpression
-    : JINJA_EXPR_START expression? JINJA_EXPR_END
-    ;
-
-jinjaStatement
-    : jinjaIfStatement
-    | jinjaForStatement
-    ;
-
-jinjaIfStatement
-    : JINJA_STMT_START JINJA_IF expression JINJA_STMT_END
-      node*
-      (JINJA_STMT_START JINJA_ELSE JINJA_STMT_END node*)?
-      JINJA_STMT_START JINJA_ENDIF JINJA_STMT_END
-    ;
-
-jinjaForStatement
-    : JINJA_STMT_START JINJA_FOR JINJA_ID JINJA_IN expression JINJA_STMT_END
-      node*
-      JINJA_STMT_START JINJA_ENDFOR JINJA_STMT_END
-    ;
-
-expression
-    : primary (operator primary)*
-    ;
-
-primary
-    : JINJA_ID (JINJA_DOT JINJA_ID)*
-    | JINJA_INT
-    | JINJA_FLOAT
-    | JINJA_STRING
-    | JINJA_LPAREN expression JINJA_RPAREN
-    ;
-
-operator
-    : JINJA_ARITH_OP
-    | JINJA_COMP_OP
-    | JINJA_BOOL_OP
-    ;
+JINJA_WS: [ \t\r\n]+ -> skip;
